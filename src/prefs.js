@@ -3,7 +3,7 @@ import Gio from "gi://Gio";
 import Gtk from "gi://Gtk";
 
 import { ExtensionPreferences } from "resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js";
-export default class WARPToggleExtensionPreferences extends ExtensionPreferences {
+export default class MullvadToggleExtensionPreferences extends ExtensionPreferences {
   fillPreferencesWindow(window) {
     window._settings = this.getSettings();
     const page = new Adw.PreferencesPage();
@@ -14,7 +14,7 @@ export default class WARPToggleExtensionPreferences extends ExtensionPreferences
 
     const statusCheckSwitchRow = new Adw.ActionRow({
       title: "Background status checks",
-      subtitle: "Update indicator by running warp-cli status periodically",
+      subtitle: "Update indicator by running mullvad status periodically",
     });
 
     const statusCheckSwitch = new Gtk.Switch({

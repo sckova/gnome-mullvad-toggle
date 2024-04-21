@@ -3,62 +3,58 @@ import GObject from "gi://GObject";
 import * as QuickSettings from "resource:///org/gnome/shell/ui/quickSettings.js";
 import { spawnCommandLine } from "resource:///org/gnome/shell/misc/util.js";
 
-const statusPattern =
-  /(Connected|Connecting|Disconnected|Registration Missing)/;
+const statusPattern = /(Connected|Connecting|Disconnecting|Disconnected|Registration Missing)/;
 
-const WARPStatus = Object.freeze({
+const MullvadStatus = Object.freeze({
   Connected: "Connected",
   Connecting: "Connecting",
+  Disconnecting: "Disconnecting",
   Disconnected: "Disconnected",
   "Registration Missing": "Registration Missing",
   Error: "Error",
 });
 
-const WARPToggle = GObject.registerClass(
-  class WARPToggle extends QuickSettings.QuickToggle {
+const MullvadToggle = GObject.registerClass(
+  class MullvadToggle extends QuickSettings.QuickToggle {
     _init(extensionObject) {
       super._init({
-        title: "WARP",
+        title: "Mullvad VPN",
         gicon: Gio.icon_new_for_string(
-          extensionObject.path + "/icons/cloudflare-symbolic.svg"
+          'network-vpn-symbolic'
         ),
       });
     }
   }
 );
 
-export var WARPIndicator = GObject.registerClass(
-  class WARPIndicator extends QuickSettings.SystemIndicator {
+export var MullvadIndicator = GObject.registerClass(
+  class MullvadIndicator extends QuickSettings.SystemIndicator {
     _init(extensionObject) {
       super._init();
       this._indicator = this._addIndicator();
       this._settings = extensionObject.getSettings();
-      this._indicator.visible = false;
+      this._indicator.visible = true;
       this._indicator.gicon = Gio.icon_new_for_string(
-        extensionObject.path + "/icons/cloudflare-symbolic.svg"
+        'network-vpn-symbolic'
       );
 
-      //Create a Toggle for QuickSettings
-      this._toggle = new WARPToggle(extensionObject);
+      // Create a Toggle for QuickSettings
+      this._toggle = new MullvadToggle(extensionObject);
       this._toggle.connect("clicked", async () => {
-        if ((await this.checkStatus()) == WARPStatus.Connecting) {
-          spawnCommandLine(`warp-cli disconnect`);
-          await this.checkStatus();
-          return;
-        }
-
+        if ((await this.checkStatus()) == MullvadStatus.Connecting) return;
+        if ((await this.checkStatus()) == MullvadStatus.Disconnecting) return;
         spawnCommandLine(
-          `warp-cli ${!this._toggle.checked ? "connect" : "disconnect"}`
+          `mullvad ${!this._toggle.checked ? "connect" : "disconnect"}`
         );
-
-        if (!this._settings.get_boolean("status-check"))
-          this.probeManualConnectionStatus();
+        await this.checkStatus();
+        this.probeManualConnectionStatus();
       });
     }
 
     async probeManualConnectionStatus() {
-      if ((await this.checkStatus()) == WARPStatus.Connecting)
-        this.probeManualConnectionStatus();
+      const status = await this.checkStatus();
+      if (status == MullvadStatus.Connecting) this.probeManualConnectionStatus();
+      if (status == MullvadStatus.Disconnecting) this.probeManualConnectionStatus();
     }
 
     destroy() {
@@ -70,14 +66,13 @@ export var WARPIndicator = GObject.registerClass(
     }
 
     updateStatus(isActive, optionalStatus) {
-      this._indicator.visible = isActive;
       this._toggle.set({ checked: isActive, subtitle: optionalStatus });
     }
 
     async checkStatus() {
       try {
         const proc = Gio.Subprocess.new(
-          ["warp-cli", "status"],
+          ["mullvad", "status"],
           Gio.SubprocessFlags.STDOUT_PIPE | Gio.SubprocessFlags.STDERR_PIPE
         );
 
@@ -90,12 +85,34 @@ export var WARPIndicator = GObject.registerClass(
         });
 
         const status = statusPattern.exec(stdout)?.[1];
-        this.updateStatus(status == WARPStatus.Connected, status);
-        return WARPStatus[status];
+
+        if (status.includes("Connecting")) {
+          this.updateStatus(false, `Connecting`);
+          this._indicator.gicon = Gio.icon_new_for_string(
+            'network-vpn-acquiring-symbolic'
+          );
+        } else if (status.includes("Disconnecting")) {
+          this.updateStatus(true, 'Disconnecting');
+          this._indicator.gicon = Gio.icon_new_for_string(
+            'network-vpn-acquiring-symbolic'
+          );
+        } else if (status.includes('Connected')) {
+          this.updateStatus(true, `Connected`);
+          this._indicator.gicon = Gio.icon_new_for_string(
+            'network-vpn-symbolic'
+          );
+        } else {
+          this.updateStatus(false, "Disconnected");
+          this._indicator.gicon = Gio.icon_new_for_string(
+            'network-vpn-disabled-symbolic'
+          );
+        }
+
+        return MullvadStatus[status];
       } catch (err) {
-        this.updateStatus(false, WARPStatus.Error);
+        this.updateStatus(false, MullvadStatus.Error);
         logError(err);
-        return WARPStatus.Error;
+        return MullvadStatus.Error;
       }
     }
   }

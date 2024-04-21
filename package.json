@@ -5,7 +5,8 @@
   "license": "MIT",
   "scripts": {
     "build": "zip-build src",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "install": "bash install.sh"
   },
   "devDependencies": {
     "eslint": "^8.26.0",

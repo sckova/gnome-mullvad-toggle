@@ -1,5 +1,3 @@
-<img src="https://github.com/khaled-0/gnome-cloudflare-warp-toggle/assets/74397286/cdae7049-0725-4f11-ab07-8fca95944c5f" height="128px" align="left">
-
 # Mullvad VPN Toggle for GNOME Shell 45 & 46
 
 Toggle Mullvad VPN in quick settings. This extension depends on `mullvad` package parsing
